@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MQ-3 Alcohol Sensor – Interactive 3D Lab</title>
+<style>
+:root{--bg1:#0d1520;--bg2:#1b2c40;--panel:#121b27ee;--ink:#e8eef5;--mute:#93a4b8;--line:#2a3a4e;--acc:#4fc3f7;--ok:#43d17a;--warn:#ffb74d;--bad:#ff5252;--btn:#1d2b3c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg1:#eaf0f7;--bg2:#cbd9e8;--panel:#ffffffee;--ink:#16202b;--mute:#566577;--line:#c6d2df;--acc:#0277bd;--ok:#1b9e55;--warn:#d9822b;--bad:#d32f2f;--btn:#eef3f8}}
+:root[data-theme="light"]{--bg1:#eaf0f7;--bg2:#cbd9e8;--panel:#ffffffee;--ink:#16202b;--mute:#566577;--line:#c6d2df;--acc:#0277bd;--ok:#1b9e55;--warn:#d9822b;--bad:#d32f2f;--btn:#eef3f8}
+:root[data-theme="dark"]{--bg1:#0d1520;--bg2:#1b2c40;--panel:#121b27ee;--ink:#e8eef5;--mute:#93a4b8;--line:#2a3a4e;--acc:#4fc3f7;--btn:#1d2b3c}
+html,body{height:100%;margin:0}
+body{display:grid;grid-template-columns:1fr 370px;background:radial-gradient(circle at 40% 30%,var(--bg2),var(--bg1));color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#stage{position:relative;min-height:0;min-width:0;touch-action:none}
+#stage canvas{display:block;width:100%;height:100%}
+#hint{position:absolute;top:10px;left:12px;color:var(--mute);background:var(--panel);padding:3px 9px;border-radius:8px;font-size:12px;pointer-events:none}
+#info{position:absolute;left:12px;bottom:12px;max-width:430px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+#info b{color:var(--acc)}
+aside{overflow:auto;padding:16px;border-left:1px solid var(--line);background:var(--panel)}
+h1{font-size:18px;margin:0 0 2px}h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:16px 0 6px}
+p.sub{margin:0;color:var(--mute);font-size:12.5px}
+button{background:var(--btn);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--acc)}button[aria-pressed="true"]{background:var(--acc);color:#04202e;border-color:var(--acc);font-weight:600}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.card{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.card small{display:block;color:var(--mute);font-size:11px}.card span{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+#gauge{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--ok),var(--warn) 45%,var(--bad));margin:8px 0 2px;overflow:hidden}
+#gfill{position:absolute;right:0;top:0;bottom:0;width:100%;background:var(--bg1);opacity:.85;transition:width .15s}
+#gmark{position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:#fff}
+#status{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:600;font-size:13px;border:1px solid currentColor}
+.led{display:inline-block;width:10px;height:10px;border-radius:50%;background:#444;margin-right:6px;vertical-align:middle}.led.on{background:#ff9100;box-shadow:0 0 8px #ff9100}
+canvas#chart{width:100%;height:90px;border:1px solid var(--line);border-radius:10px}
+pre{margin:0;background:rgba(0,0,0,.28);color:#d6e6f5;border-radius:10px;padding:8px 10px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:auto}
+#serial{height:110px}
+details{border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin:8px 0}summary{cursor:pointer;font-weight:600}
+details li{margin:2px 0}.note{font-size:12px;color:var(--mute)}
+label.chk{display:inline-flex;align-items:center;gap:5px;margin-right:12px}
+@media(max-width:820px){html,body{height:auto;min-height:100%}body{display:block;overflow:visible;min-height:100%}#stage{height:clamp(320px,52vw,460px);min-height:320px}aside{border-left:0;border-top:1px solid var(--line);overflow:visible}#info{max-width:none;right:12px}}
+</style>
+</head>
+<body>
+<div id="stage"><div id="hint">Drag to orbit · scroll / pinch to zoom · click a part</div>
+<div id="info"><b id="pname">Alcohol sensor circuit</b><div id="pdesc">Click the breadboard, Arduino, MQ-3 sensor, LM358 chip, resistors or wires to learn what each one does.</div></div></div>
+<aside>
+<h1>MQ-3 Alcohol Sensor Lab</h1>
+<p class="sub">Breadboard · MQ-3 · LM358 op-amp · Arduino Uno — a live, interactive model.</p>
+
+<h2>Breath simulator</h2>
+<label for="conc">Breath alcohol: <b id="concv">0.40</b> mg/L</label>
+<input id="conc" type="range" min="0" max="2" step="0.01" value="0.40">
+<div class="row"><button id="blow" aria-pressed="false">Blow on sensor: OFF</button><button id="skip">Skip warm-up</button><button id="sound-enable" title="Click once to allow browser audio">Enable sound</button></div><p class="note" id="sound-note">Click “Enable sound” once to allow the live buzzer tone in your browser.</p>
+<div class="row">
+<button data-c="0.05">Mouthwash</button><button data-c="0.2">1 beer</button><button data-c="0.38">Legal limit</button><button data-c="0.9">Heavy</button></div>
+
+<h2>Live readings</h2>
+<div class="grid">
+<div class="card"><small>MQ-3 output (AO)</small><span id="vs">–</span></div>
+<div class="card"><small>LM358 output → A0</small><span id="vo">–</span></div>
+<div class="card"><small>ADC (0–1023)</small><span id="adc">–</span></div>
+<div class="card"><small>Sensor Rs</small><span id="rs">–</span></div></div>
+<div class="card" style="margin-top:8px"><small>Estimated BAC</small><span id="bac">–</span>
+<div id="gauge"><div id="gfill"></div><div id="gmark"></div></div>
+<span id="status">Warming up</span> &nbsp;<span class="note"><i class="led" id="led13"></i>Alarm LED + buzzer</span></div>
+
+<h2>A0 voltage</h2><canvas id="chart" width="330" height="90"></canvas>
+<h2>Serial monitor (9600 baud)</h2><pre id="serial"></pre>
+
+<h2>View</h2>
+<label class="chk"><input type="checkbox" id="explode"> Exploded view</label>
+<label class="chk"><input type="checkbox" id="labels" checked> Labels</label>
+<label class="chk"><input type="checkbox" id="spin"> Auto-rotate</label>
+<label class="chk"><input type="checkbox" id="snd" checked> Buzzer sound</label>
+<div class="row"><button id="reset">Reset camera</button></div>
+
+<details><summary>Wiring &amp; circuit</summary><ul style="padding-left:18px;margin:6px 0">
+<li>MQ-3 VCC/heater → 5 V rail; GND → GND rail</li>
+<li>RL = 10 kΩ from MQ-3 AO to GND (load resistor)</li>
+<li>MQ-3 AO → LM358 pin 3 (+IN)</li>
+<li>LM358 pin 8 → 5 V, pin 4 → GND</li>
+<li>Non-inverting amplifier: Rf = 4.7 kΩ (pin 1 → pin 2), Rg = 10 kΩ (pin 2 → GND), gain ≈ 1.47</li>
+<li>LM358 pin 1 (OUT) → Arduino A0; Arduino 5 V / GND → rails</li>
+<li>Pin 13 → 220 Ω → red LED anode; LED cathode → GND</li>
+<li>Pin 8 → buzzer (+); buzzer (−) → GND</li></ul>
+<p class="note">The LM358 output can’t swing fully to 5 V, so it clips near 3.6 V — watch the reading saturate on heavy breath.</p></details>
+<p class="note">Educational model only. A real MQ-3 needs ~24 h burn-in, warm-up and calibration, and must never be used for legal, medical or driving decisions.</p>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id), V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const stage=$('stage');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+stage.insertBefore(renderer.domElement,stage.firstChild);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,.1,200);
+scene.add(new THREE.HemisphereLight(0xffffff,0x445566,.95));
+const sun=new THREE.DirectionalLight(0xffffff,.9);sun.position.set(8,16,10);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-26,right:26,top:26,bottom:-26,near:1,far:80});scene.add(sun);
+const heatLight=new THREE.PointLight(0xff7a18,0,7);heatLight.position.set(-4.75,3.4,0);scene.add(heatLight);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(80,80),new THREE.ShadowMaterial({opacity:.28}));
+ground.rotation.x=-Math.PI/2;ground.position.y=-14;ground.receiveShadow=true;scene.add(ground);
+
+const envS=new THREE.Scene(),gc=document.createElement('canvas');gc.width=2;gc.height=256;const gx=gc.getContext('2d'),gr=gx.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#d6e6f6');gr.addColorStop(.5,'#8d9aa8');gr.addColorStop(1,'#2a313a');gx.fillStyle=gr;gx.fillRect(0,0,2,256);
+envS.add(new THREE.Mesh(new THREE.SphereGeometry(50,32,16),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(gc),side:THREE.BackSide})));
+[[20,30,20],[-25,20,-10],[0,25,-25]].forEach(p=>{const b=new THREE.Mesh(new THREE.BoxGeometry(14,2,14),new THREE.MeshBasicMaterial({color:0xffffff}));b.position.set(...p);b.lookAt(0,0,0);envS.add(b)});
+scene.environment=new THREE.PMREMGenerator(renderer).fromScene(envS).texture;
+const M=(c,r=.6,m=0)=>{const x=new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});x.envMapIntensity=m?1.2:.35;return x};
+const parts={};
+function part(id,name,desc){const g=new THREE.Group();g.userData={id,name,desc,ex:V(0,0,0)};scene.add(g);parts[id]=g;return g}
+function box(w,h,d,mat,x,y,z,p){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);p.add(m);return m}
+function cyl(rt,rb,h,mat,x,y,z,p,seg=32){const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat);m.position.set(x,y,z);p.add(m);return m}
+function rod(a,b,r,mat){const v=new THREE.Vector3().subVectors(b,a),L=v.length();const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,8),mat);m.position.copy(a).addScaledVector(v,.5);m.quaternion.setFromUnitVectors(V(0,1,0),v.normalize());return m}
+function tex(text,w,h,font,fg,bg){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');if(bg){x.fillStyle=bg;x.fillRect(0,0,w,h)}x.fillStyle=fg;x.font=font;x.textAlign='center';x.textBaseline='middle';x.fillText(text,w/2,h/2);return new THREE.CanvasTexture(c)}
+const steel=M(0xb7bcc2,.35,.9), black=M(0x18181b,.55);
+
+/* ---------- Breadboard ---------- */
+const bb=part('bb','Breadboard','A solderless breadboard. Holes in each short column of five are connected inside, so parts and jumper wires plug in without soldering. The two outer strips are power rails: red = +5 V, blue = GND. The centre groove isolates the two halves so an IC like the LM358 can straddle it.');
+box(16.6,.9,8.2,M(0xf2eee3,.8),0,0,0,bb);
+box(16.4,.02,.7,M(0xc9c2b2,.9),0,.451,0,bb);
+const nc=document.createElement('canvas');nc.width=2048;nc.height=44;const nx=nc.getContext('2d');nx.fillStyle='#8a8478';nx.font='bold 28px sans-serif';nx.textAlign='center';nx.textBaseline='middle';for(let i=0;i<30;i++)nx.fillText(i+1,(-7.25+.5*i+8.2)/16.4*2048,22);
+const np=new THREE.Mesh(new THREE.PlaneGeometry(16.4,.35),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(nc),transparent:true}));np.rotation.x=-Math.PI/2;np.position.set(0,.4525,0);bb.add(np);
+const hm=new THREE.InstancedMesh(new THREE.BoxGeometry(.16,.03,.16),M(0x14120f,.9),420),dm=new THREE.Object3D();let n=0;
+const zs=[];for(let j=0;j<5;j++)zs.push(.75+.5*j,-(.75+.5*j));zs.push(3.35,3.85,-3.35,-3.85);
+zs.forEach(z=>{for(let i=0;i<30;i++){dm.position.set(-7.25+.5*i,.452,z);dm.updateMatrix();hm.setMatrixAt(n++,dm.matrix)}});bb.add(hm);
+[[4,0xe53935],[-4,0xe53935],[3.2,0x1e88e5],[-3.2,0x1e88e5]].forEach(([z,c])=>box(14.8,.012,.05,new THREE.MeshBasicMaterial({color:c}),0,.452,z,bb));
+
+/* ---------- Arduino Uno ---------- */
+const unoP=part('uno','Arduino Uno','The microcontroller board (ATmega328P). It supplies 5 V and GND to the breadboard, reads the amplified sensor voltage on analog pin A0 with its 10-bit ADC (0–1023), estimates the alcohol level and lights the pin-13 LED above the limit. USB powers it and carries the Serial Monitor output.');
+const uno=new THREE.Group(),UK=1.9;unoP.add(uno);uno.scale.setScalar(UK);const AZ=-9.85,AY=-.37;uno.position.set(0,-.37-UK*AY,-11.03-UK*AZ);
+box(6.9,.16,5.3,M(0x00838f,.5),0,AY,AZ,uno);
+box(1.5,1.1,1.7,M(0xc4cacf,.3,.9),-3.0,AY+.63,AZ+1.1,uno);
+box(1.5,1.2,1.7,black,-3.0,AY+.68,AZ-1.2,uno);
+box(3.0,.28,.8,M(0x1b1b1b,.5),.9,AY+.22,AZ-.2,uno);
+box(2.4,.4,.26,black,-1.2,AY+.28,AZ+2.25,uno);box(3.0,.4,.26,black,1.9,AY+.28,AZ+2.25,uno);box(4.8,.4,.26,black,.9,AY+.28,AZ-2.4,uno);
+cyl(.25,.25,.3,M(0xd32f2f,.5),-2.3,AY+.22,AZ-1.2,uno,16);
+const ledL=new THREE.Mesh(new THREE.BoxGeometry(.4,.08,.22),new THREE.MeshStandardMaterial({color:0x7a4a00,emissive:0xff8800,emissiveIntensity:0}));ledL.position.set(2.5,AY+.12,AZ-1.6);uno.add(ledL);
+box(.3,.08,.2,new THREE.MeshStandardMaterial({color:0x114411,emissive:0x22ff55,emissiveIntensity:1.2}),-1.9,AY+.12,AZ-1.6,uno);
+const unoTxt=new THREE.Mesh(new THREE.PlaneGeometry(2.6,.7),new THREE.MeshBasicMaterial({map:tex('ARDUINO UNO',256,64,'bold 34px sans-serif','#e8f6f7'),transparent:true}));
+unoTxt.rotation.x=-Math.PI/2;unoTxt.position.set(1.2,AY+.09,AZ+.9);uno.add(unoTxt);
+const uw=(x,y,z)=>[x*UK,uno.position.y+UK*y,uno.position.z+UK*z];
+const A5V=uw(-1.4,.15,AZ+2.25),AGND=uw(-.9,.15,AZ+2.25),AA0=uw(1.0,.15,AZ+2.25),D13=uw(.7,.15,AZ-2.4),D8=uw(3.2,.15,AZ-2.4);
+const pinM=M(0xd4af37,.3,1);
+const hpins=(x0,n,z)=>{for(let i=0;i<n;i++)box(.1,.25,.1,pinM,x0+i*.5,.17,z,uno)};hpins(-2.4,5,AZ+2.25);hpins(.5,6,AZ+2.25);hpins(-1.3,10,AZ-2.4);
+box(1.0,.35,.7,black,-1.2,AY+.25,AZ-1.0,uno);box(.9,.05,.5,steel,-1.2,AY+.44,AZ-1.0,uno);
+[[-1.9,AZ+.9],[-.9,AZ+1.0]].forEach(([x,z])=>{cyl(.3,.3,.45,M(0xaab0b6,.35,.9),x,AY+.3,z,uno,24);cyl(.3,.3,.02,M(0x222222,.5),x,AY+.53,z,uno,24)});
+box(.7,.25,.28,steel,2.9,AY+.2,AZ-.7,uno);box(.9,.2,.6,black,2.9,AY+.18,AZ+.3,uno);
+[[3.05,AZ+1.9],[2.8,AZ-1.9]].forEach(([x,z])=>cyl(.17,.17,.2,M(0x0b2a2e,.8),x,AY,z,uno,16));
+for(let k=0;k<8;k++)box(.2,.08,.12,M(0xc2b28a,.7),-.2+.4*k,AY+.12,AZ-1.1,uno);
+[['POWER',-1.4,AZ+1.8,1.6,.28],['ANALOG IN',1.9,AZ+1.8,2.2,.28],['DIGITAL (PWM~)',.9,AZ-1.9,3,.28]].forEach(([t,x,z,w,h])=>{const th=Math.round(256*h/w),m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex(t,256,th,'bold '+Math.round(th*.7)+'px sans-serif','#e8f6f7'),transparent:true}));m.rotation.x=-Math.PI/2;m.position.set(x,AY+.091,z);uno.add(m)});
+
+/* ---------- MQ-3 ---------- */
+const mq=part('mq3','MQ-3 alcohol gas sensor','A semiconductor (SnO₂) gas sensor. A built-in heater (the glowing mesh) warms the sensing layer; alcohol vapour lowers its resistance Rs. With the 10 kΩ load resistor RL it forms a voltage divider, so more alcohol means a higher voltage on the AO pin.');
+const mx=-4.75;
+cyl(1.7,1.7,.3,M(0xc9a66b,.7),mx,1.35,0,mq);cyl(1.55,1.55,.12,steel,mx,1.56,0,mq,40);
+cyl(1.5,1.5,1.0,steel,mx,2.0,0,mq,40);
+const glow=new THREE.Mesh(new THREE.CircleGeometry(1.4,40),new THREE.MeshBasicMaterial({color:0xff6a00,transparent:true,opacity:0}));glow.rotation.x=-Math.PI/2;glow.position.set(mx,2.502,0);mq.add(glow);
+const mc=document.createElement('canvas');mc.width=mc.height=128;const mg=mc.getContext('2d');mg.strokeStyle='#d0d5da';mg.lineWidth=5;for(let i=0;i<=128;i+=16){mg.beginPath();mg.moveTo(i,0);mg.lineTo(i,128);mg.moveTo(0,i);mg.lineTo(128,i);mg.stroke()}
+const mesh=new THREE.Mesh(new THREE.CircleGeometry(1.42,40),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(mc),transparent:true,depthWrite:false}));mesh.rotation.x=-Math.PI/2;mesh.position.set(mx,2.507,0);mq.add(mesh);
+[-5.25,-4.25].forEach(x=>[-.75,.75].forEach(z=>mq.add(rod(V(x,.5,z),V(x,1.2,z),.06,steel))));
+
+/* ---------- LM358 ---------- */
+const lm=part('lm358','LM358 operational amplifier','A dual op-amp used here as a non-inverting amplifier (gain ≈ 1 + Rf/Rg = 1.47). Its high input impedance stops the Arduino from loading the sensor, and the gain stretches the signal for better ADC resolution. It runs from 5 V, so its output can only reach about 3.6 V.');
+const lx=1.5;
+box(2.2,.5,1.2,black,lx,.8,0,lm);cyl(.08,.08,.02,M(0x888888),2.45,1.06,.35,lm,12);
+const lmt=new THREE.Mesh(new THREE.PlaneGeometry(1.6,.4),new THREE.MeshBasicMaterial({map:tex('LM358',256,64,'bold 40px sans-serif','#cfd4da'),transparent:true}));lmt.rotation.x=-Math.PI/2;lmt.position.set(lx-.1,1.06,-.1);lm.add(lmt);
+for(let i=0;i<4;i++){[[2.25-.5*i,.75],[.75+.5*i,-.75]].forEach(([x,z])=>{lm.add(rod(V(x,.5,z),V(x,.78,z),.05,steel));lm.add(rod(V(x,.78,z),V(x,.78,z*.8),.05,steel))})}
+
+/* ---------- Resistors ---------- */
+const res=part('res','Resistors','Rf = 4.7 kΩ (feedback, from LM358 output to −input), Rg = 10 kΩ (−input to GND) set the amplifier gain. RL = 10 kΩ is the sensor’s load resistor that turns Rs into a voltage. Coloured bands encode the value.');
+function resistor(x0,z0,x1,z1,bands){
+  const dx=x1-x0,dz=z1-z0,dist=Math.hypot(dx,dz),g=new THREE.Group();g.position.set((x0+x1)/2,.45,(z0+z1)/2);g.rotation.y=-Math.atan2(dz,dx);
+  const bl=Math.min(1.1,dist*.6),lead=M(0xcfd3d8,.3,.9);
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,bl,16),M(0xdcc08a,.7));b.rotation.z=Math.PI/2;b.position.y=.8;g.add(b);
+  bands.forEach((c,i)=>{const r=new THREE.Mesh(new THREE.CylinderGeometry(.205,.205,.07,16),M(c,.6));r.rotation.z=Math.PI/2;r.position.set(-bl/2+.12+i*.12,.8,0);g.add(r)});
+  [-1,1].forEach(s=>{g.add(rod(V(s*dist/2,0,0),V(s*dist/2,.8,0),.045,lead));g.add(rod(V(s*dist/2,.8,0),V(s*bl/2,.8,0),.045,lead))});
+  res.add(g);
+}
+const BR=0x7b3f00,BK=0x111111,OR=0xff8f00,YE=0xfdd835,VI=0x8e24aa,RD=0xe53935,GD=0xd4af37;
+resistor(3.75,1.75,1.75,1.75,[YE,VI,RD,GD]);   // Rf 4.7k
+resistor(1.75,2.75,.75,2.75,[BR,BK,OR,GD]);     // Rg 10k
+resistor(-5.25,1.75,-4.25,1.75,[BR,BK,OR,GD]);  // RL 10k
+resistor(6.25,2.25,7.25,2.25,[RD,RD,BR,GD]);    // LED resistor 220R
+
+/* ---------- LED ---------- */
+const led=part('led','Red alarm LED','A 5 mm red LED on Arduino pin 13 through a 220 Ω current-limiting resistor. It lights when the estimated BAC reaches 0.08 %. The longer leg (left) is the anode (+); the cathode goes to the GND rail.');
+const ledX=7.5,ledZ=1.25,redM=new THREE.MeshStandardMaterial({color:0x8a0f0f,emissive:0xff1a1a,emissiveIntensity:0,transparent:true,opacity:.88,roughness:.15});
+cyl(.5,.5,.6,redM,ledX,1.3,ledZ,led);cyl(.62,.62,.08,redM,ledX,1.04,ledZ,led);
+const dome=new THREE.Mesh(new THREE.SphereGeometry(.5,24,12,0,Math.PI*2,0,Math.PI/2),redM);dome.position.set(ledX,1.6,ledZ);led.add(dome);
+led.add(rod(V(7.25,.45,ledZ),V(7.25,1.0,ledZ),.05,steel));led.add(rod(V(7.75,.45,ledZ),V(7.75,.9,ledZ),.05,steel));
+const ledLight=new THREE.PointLight(0xff2a2a,0,6);ledLight.position.set(ledX,2.6,ledZ);scene.add(ledLight);
+
+/* ---------- Buzzer ---------- */
+const bz=part('buzzer','Active piezo buzzer','An active buzzer on Arduino pin 8: when the Arduino drives it, its built-in oscillator makes a loud tone. The sketch beeps it while BAC is at or above 0.08 %. The “+” leg connects to pin 8, the other leg to GND.');
+const bzx=6.0,bzz=-1.75,bzG=new THREE.Group();bzG.position.set(bzx,0,bzz);bz.add(bzG);
+cyl(1.2,1.2,1.9,M(0x161616,.45),0,1.75,0,bzG,40);cyl(.3,.3,.02,M(0x000000,.9),0,2.71,0,bzG,20);
+const bzp=new THREE.Mesh(new THREE.PlaneGeometry(.5,.5),new THREE.MeshBasicMaterial({map:tex('+',64,64,'bold 56px sans-serif','#ffffff'),transparent:true}));bzp.rotation.x=-Math.PI/2;bzp.position.set(-.7,2.705,0);bzG.add(bzp);
+bzG.add(rod(V(-.75,.45,0),V(-.75,.8,0),.06,steel));bzG.add(rod(V(.75,.45,0),V(.75,.8,0),.06,steel));
+const rings=[0,1,2].map(()=>{const r=new THREE.Mesh(new THREE.TorusGeometry(1,.035,8,40),new THREE.MeshBasicMaterial({color:0xffd54f,transparent:true,opacity:0}));r.rotation.x=Math.PI/2;r.position.set(bzx,3.0,bzz);scene.add(r);return r});
+
+/* ---------- Wires ---------- */
+const wires=part('wires','Jumper wires','Red = +5 V, black = GND, yellow = raw sensor signal (MQ-3 AO → LM358 +IN), green = amplified signal (LM358 output → Arduino A0, and back to the feedback resistor). Orange = Arduino pin 8 → buzzer, purple = pin 13 → LED.');
+function wire(a,b,col){
+  const A=V(...a),B=V(...b),d=A.distanceTo(B),h=.45+d*.1,up=.35,m=M(col,.5);
+  const p0=A.clone();p0.y+=up;const p1=B.clone();p1.y+=up;
+  const q=(t,k)=>{const p=p0.clone().lerp(p1,t);p.y+=h*k;return p};
+  const tube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([p0,q(.2,.75),q(.5,1),q(.8,.75),p1]),40,.07,8),m);wires.add(tube);
+  [A,B].forEach(P=>wires.add(rod(P,V(P.x,P.y+up,P.z),.09,m)));
+}
+const bp=(x,z)=>[x,.45,z],RE=0xe53935,BL=0x222222,YL=0xfdd835,GR=0x43a047;
+wire(A5V,bp(-6.75,-3.85),RE);wire(AGND,bp(-6.25,-3.35),BL);
+wire(bp(-5.25,-3.85),bp(-5.25,-2.25),RE);wire(bp(-4.25,-3.35),bp(-4.25,-2.25),BL);wire(bp(-3.75,-3.35),bp(-4.25,2.25),BL);
+wire(bp(-5.25,2.25),bp(1.25,2.25),YL);
+wire(bp(2.25,-3.85),bp(2.25,-2.25),RE);wire(bp(.75,-3.35),bp(.75,2.25),BL);
+wire(bp(2.25,1.25),bp(3.75,1.25),GR);wire(bp(3.75,2.25),AA0,GR);
+wire(D8,bp(5.25,-2.75),0xff9800);wire(bp(6.75,-2.75),bp(6.75,-3.35),BL);
+wire(D13,bp(6.25,1.25),0xab47bc);wire(bp(7.75,2.25),bp(7.75,-3.35),BL);
+
+scene.traverse(o=>{if(o.isMesh&&o.material&&o.material.type!=='ShadowMaterial'&&o.material.type!=='MeshBasicMaterial')o.castShadow=true});
+bb.traverse(o=>{if(o.isMesh)o.receiveShadow=true});
+
+/* ---------- Lab environment ---------- */
+const labG=new THREE.Group();scene.add(labG);
+scene.background=new THREE.Color(0xa9b8c4);scene.fog=new THREE.Fog(0xa9b8c4,80,170);
+const tile=(a,b,rx,ry)=>{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle=a;x.fillRect(0,0,128,128);x.strokeStyle=b;x.lineWidth=4;x.strokeRect(0,0,128,128);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=4;return t};
+const plane=(w,h,mat,x,y,z,ry)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);m.position.set(x,y,z);m.rotation.y=ry||0;m.userData.nc=1;labG.add(m);return m};
+const wallM=rx=>new THREE.MeshStandardMaterial({map:tile('#eef2f4','#c9d2d8',rx,10),roughness:.45});
+plane(76,40,wallM(19),0,6,-20);plane(60,40,wallM(15),-38,6,10,Math.PI/2);plane(60,40,wallM(15),38,6,10,-Math.PI/2);
+plane(200,200,new THREE.MeshStandardMaterial({map:tile('#c5cbd0','#9aa4ab',40,40),roughness:.35}),0,-14,-20).rotation.x=-Math.PI/2;
+/* bench + cabinets */
+box(64,1,30,M(0x1f272c,.28,.1),0,-1.03,-4,labG);
+box(62,12.4,28,M(0xdde3e7,.5),0,-7.73,-4,labG);
+for(let i=0;i<5;i++){const x=-24.8+12.4*i;box(11.6,10.6,.12,M(0xc6ced4,.45),x,-7.73,10.06,labG);box(4,.35,.3,steel,x,-4.6,10.25,labG)}
+/* wall shelf with reagent bottles */
+box(46,.4,3.4,M(0xb9c0c6,.4,.6),4,10,-18.3,labG);[-16,-2,10,24].forEach(x=>box(.4,2,3,steel,x,9,-18.3,labG));
+const bottle=(x,y,z,col,txt)=>{const g=new THREE.Group();g.position.set(x,y,z);const gl=new THREE.MeshStandardMaterial({color:col,roughness:.1,transparent:true,opacity:.8,envMapIntensity:1.4});cyl(.8,.8,2.4,gl,0,1.2,0,g,20);cyl(.35,.5,.6,gl,0,2.7,0,g,16);cyl(.4,.4,.35,black,0,3.15,0,g,16);const lb=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.1),new THREE.MeshBasicMaterial({map:tex(txt,128,116,'bold 34px sans-serif','#14212b','#f5f5ef')}));lb.position.set(0,1.2,.81);g.add(lb);labG.add(g)};
+[['EtOH',0x8a4b12],['H2O',0xcfe8f5],['NaOH',0xcfe8f5],['HCl',0x6fa8dc],['Acet.',0x8a4b12],['MeOH',0x8a4b12],['KMnO4',0x4a2a6a],['NaCl',0xcfe8f5],['IPA',0x8a4b12],['H2SO4',0xcfe8f5]].forEach(([t,c],i)=>bottle(-14+i*3.8,10.2,-18.3,c,t));
+/* wall posters */
+const cv=(w,h,fn)=>{const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);return new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c)})};
+plane(14,7.8,cv(432,240,(x,w,h)=>{x.fillStyle='#fdfdf8';x.fillRect(0,0,w,h);const cols=['#ef5350','#ffa726','#ffee58','#66bb6a','#42a5f5','#ab47bc','#8d6e63'];for(let r=0;r<7;r++)for(let c=0;c<18;c++){if((r===0&&c>0&&c<17)||(r>0&&r<3&&c>1&&c<12))continue;x.fillStyle=cols[(c*3+r*2)%7];x.fillRect(10+c*23,28+r*29,21,26)}x.fillStyle='#222';x.font='bold 17px sans-serif';x.fillText('PERIODIC TABLE OF THE ELEMENTS',62,18)}),-16,16,-19.9);
+plane(6.4,8,cv(256,320,(x,w,h)=>{x.fillStyle='#ffd600';x.fillRect(0,0,w,h);x.strokeStyle='#111';x.lineWidth=10;x.strokeRect(5,5,w-10,h-10);x.fillStyle='#111';x.beginPath();x.moveTo(128,40);x.lineTo(210,170);x.lineTo(46,170);x.closePath();x.fill();x.fillStyle='#ffd600';x.font='bold 100px sans-serif';x.textAlign='center';x.fillText('!',128,150);x.fillStyle='#111';x.font='bold 34px sans-serif';x.fillText('CAUTION',128,222);x.font='bold 22px sans-serif';x.fillText('Ethanol vapour',128,260);x.fillText('Flammable',128,290)}),18,16,-19.9);
+plane(8,4,cv(256,128,(x,w,h)=>{x.fillStyle='#1565c0';x.fillRect(0,0,w,h);x.fillStyle='#fff';x.font='bold 26px sans-serif';x.textAlign='center';x.fillText('WEAR GOGGLES',128,52);x.fillText('& GLOVES',128,90)}),29,16,-19.9);
+/* glassware */
+const glassM=()=>new THREE.MeshStandardMaterial({color:0xd6ecf7,roughness:.05,transparent:true,opacity:.3,envMapIntensity:1.6,side:THREE.DoubleSide,depthWrite:false});
+const liqM=c=>new THREE.MeshStandardMaterial({color:c,roughness:.15,transparent:true,opacity:.75});
+function beaker(x,z,r,h,f,c){const g=new THREE.Group();g.position.set(x,-.53,z);cyl(r,r,h,glassM(),0,h/2,0,g,32);cyl(r*.96,r*.96,h*f,liqM(c),0,h*f/2+.05,0,g,32);for(let i=1;i<5;i++)box(r*.5,.04,.05,new THREE.MeshBasicMaterial({color:0x333333}),0,h*i/5,r*.99,g);labG.add(g)}
+function flask(x,z,c){const g=new THREE.Group();g.position.set(x,-.53,z);cyl(.9,3.0,4.2,glassM(),0,2.1,0,g,32);cyl(.9,.9,2.2,glassM(),0,5.3,0,g,24);cyl(1.75,2.9,2.45,liqM(c),0,1.3,0,g,32);cyl(1.05,1.05,.3,glassM(),0,6.5,0,g,24);labG.add(g)}
+beaker(14,-4,2.4,6,.6,0xf3e08a);beaker(19,-8,1.7,4.6,.5,0x9ad7ff);flask(23,-2,0xa5d6a7);
+const rack=new THREE.Group();rack.position.set(24,-.53,-12);labG.add(rack);const wd=M(0x8d6e4a,.6);
+box(7,.3,2,wd,0,.15,0,rack);box(7,.25,2,wd,0,3.2,0,rack);[-3.4,3.4].forEach(x=>box(.25,3,2,wd,x,1.6,0,rack));
+[0xf44336,0x4caf50,0xffeb3b,0x2196f3,0xffffff].forEach((c,i)=>{const x=-2.4+i*1.2;cyl(.4,.4,5,glassM(),x,2.8,0,rack,16);cyl(.36,.36,2.2,liqM(c),x,1.5,0,rack,16)});
+/* ethanol wash bottle */
+{const g=new THREE.Group();g.position.set(-14,-.53,-3);labG.add(g);const w=M(0xf5f5f5,.4),bl=M(0x1976d2,.4);cyl(1.3,1.3,7,w,0,3.5,0,g,24);cyl(.5,1.3,1.2,w,0,7.6,0,g,24);cyl(.5,.5,.8,bl,0,8.6,0,g,16);g.add(rod(V(0,8.9,0),V(1.7,9.6,0),.2,bl));const lb=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.8),new THREE.MeshBasicMaterial({map:tex('ETHANOL',128,160,'bold 26px sans-serif','#c62828','#ffffff')}));lb.position.set(0,3.4,1.31);g.add(lb)}
+/* microscope */
+{const g=new THREE.Group();g.position.set(29,-.53,-13);g.rotation.y=-.6;labG.add(g);const d=M(0x2b2f33,.4,.5);box(5,.6,6.5,d,0,.3,0,g);box(1,9,1.2,d,0,5,-2.2,g);box(4.5,.3,3.5,steel,0,3.4,.2,g);
+ const tb=cyl(.7,.7,5,d,0,7.4,-.5,g,20);tb.rotation.x=.45;cyl(.45,.45,1.2,steel,0,9.9,-1.5,g,16).rotation.x=.45;cyl(.9,.9,.6,steel,0,4.7,.2,g,20);cyl(.25,.25,1.2,steel,.4,4.0,.5,g,12);cyl(.8,.8,.6,steel,0,3,-2.2,g,20).rotation.z=Math.PI/2}
+/* laptop that mirrors the Serial Monitor */
+const lapC=document.createElement('canvas');lapC.width=512;lapC.height=320;const lapX=lapC.getContext('2d'),lapT=new THREE.CanvasTexture(lapC);
+function drawLap(ls){lapX.fillStyle='#0b1017';lapX.fillRect(0,0,512,320);lapX.fillStyle='#1c2a3a';lapX.fillRect(0,0,512,34);lapX.fillStyle='#9fb6cc';lapX.font='bold 18px sans-serif';lapX.fillText('Serial Monitor – Arduino Uno (9600 baud)',12,23);lapX.fillStyle='#5dff9a';lapX.font='17px monospace';ls.slice(-11).forEach((s,i)=>lapX.fillText(s,12,62+i*24));lapT.needsUpdate=true}
+drawLap(['Waiting for data…']);
+{const lap=new THREE.Group();lap.position.set(-19,-.53,-9);lap.rotation.y=.5;labG.add(lap);box(10,.3,7,M(0xb9bec4,.35,.8),0,.15,0,lap);box(8,.02,3.4,M(0x2a2f34,.6),0,.31,.6,lap);
+ const sc=new THREE.Group();sc.position.set(0,.3,-3.4);sc.rotation.x=-.3;lap.add(sc);box(10,6.6,.25,M(0xb9bec4,.35,.8),0,3.3,0,sc);
+ const s=new THREE.Mesh(new THREE.PlaneGeometry(9.2,5.75),new THREE.MeshBasicMaterial({map:lapT}));s.position.set(0,3.3,.14);sc.add(s)}
+labG.traverse(o=>{if(o.isMesh){o.receiveShadow=true;o.castShadow=!o.material.transparent&&!o.userData.nc}});
+
+/* explode offsets */
+mq.userData.ex.set(0,6,0);lm.userData.ex.set(0,3.5,0);res.userData.ex.set(0,2,0);led.userData.ex.set(0,3.5,0);bz.userData.ex.set(0,3.5,0);wires.userData.ex.set(0,1.2,0);unoP.userData.ex.set(0,-1.4,0);
+
+/* ---------- Labels ---------- */
+const labels=[];
+function label(text,pid,x,y,z){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex(text,256,64,'bold 30px sans-serif','#fff','rgba(10,25,40,.82)'),depthTest:false,transparent:true}));s.scale.set(2.6,.65,1);s.renderOrder=10;s.userData={pid,base:V(x,y,z)};scene.add(s);labels.push(s)}
+label('MQ-3 sensor','mq3',-4.75,3.9,0);label('LM358','lm358',1.5,2.3,0);label('Arduino Uno','uno',0,3.2,-11);label('Breadboard','bb',-6.5,1.5,3.9);label('Buzzer','buzzer',6,4.0,-1.75);label('LED','led',7.5,3.2,1.25);
+label('Rf 4.7k','res',2.75,2,1.75);label('Rg 10k','res',1.25,2,3.3);label('RL 10k','res',-4.75,2.1,2.3);label('220 Ω','res',6.75,2.2,3.2);
+label('5V','uno',-2.66,1.9,-6.4);label('GND','uno',-1.7,1.9,-6.4);label('A0','uno',1.9,1.9,-6.4);label('D13','uno',1.33,1.9,-15.7);label('D8','uno',6.08,1.9,-15.7);
+
+/* ---------- Particles ---------- */
+const N=140,pp=new Float32Array(N*3),pv=new Float32Array(N*3),pl=new Float32Array(N);
+function spawn(i){pp[i*3]=-4.75+(Math.random()-.5)*3;pp[i*3+1]=4+Math.random()*2.5;pp[i*3+2]=5+Math.random()*2;const d=1.6+Math.random();
+  pv[i*3]=(-4.75+(Math.random()-.5)*.8-pp[i*3])/d;pv[i*3+1]=(1.9-pp[i*3+1])/d;pv[i*3+2]=((Math.random()-.5)*.8-pp[i*3+2])/d;pl[i]=d*Math.random()}
+for(let i=0;i<N;i++){spawn(i);pp[i*3+1]=-50}
+const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pp,3));
+const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0x9be7ff,size:.28,transparent:true,opacity:.75,depthWrite:false}));pts.frustumCulled=false;scene.add(pts);
+
+/* ---------- Highlight ---------- */
+let sel=null;const hl=new THREE.BoxHelper(new THREE.Object3D(),0x4fc3f7);hl.visible=false;scene.add(hl);
+const dflt={n:$('pname').textContent,d:$('pdesc').textContent};
+function select(g){sel=g;if(g){hl.setFromObject(g);hl.visible=true;$('pname').textContent=g.userData.name;$('pdesc').textContent=g.userData.desc}else{hl.visible=false;$('pname').textContent=dflt.n;$('pdesc').textContent=dflt.d}}
+
+/* ---------- Camera / orbit ---------- */
+const target=V(0,0,-6),cam0={th:.55,ph:.9,r:38},cam={...cam0};
+function placeCam(){camera.position.set(target.x+cam.r*Math.sin(cam.ph)*Math.sin(cam.th),target.y+cam.r*Math.cos(cam.ph),target.z+cam.r*Math.sin(cam.ph)*Math.cos(cam.th));camera.lookAt(target)}
+const ptrs=new Map();let moved=0,pinch=0;const el=renderer.domElement;
+el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=0;pinch=0});
+el.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;
+  if(ptrs.size===1){cam.th-=dx*.008;cam.ph=Math.max(.12,Math.min(1.5,cam.ph-dy*.008));moved+=Math.abs(dx)+Math.abs(dy)}
+  p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(pinch)cam.r=Math.max(8,Math.min(50,cam.r*pinch/d));pinch=d;moved=99}});
+const up=e=>{if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);pinch=0;
+  if(e.type==='pointerup'&&moved<5&&ptrs.size===0){const r=el.getBoundingClientRect(),ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);
+    const hit=ray.intersectObjects(Object.values(parts),true)[0];let g=null;if(hit){let o=hit.object;while(o&&!(o.userData&&o.userData.id))o=o.parent;g=o}select(g)}};
+el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+el.addEventListener('wheel',e=>{e.preventDefault();cam.r=Math.max(8,Math.min(50,cam.r*Math.exp(e.deltaY*.001)))},{passive:false});
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(stage);resize();
+
+/* ---------- Sensor model ---------- */
+const R0=60,RL=10,G=1.47,VMAX=3.6;
+const rsOf=c=>R0/(1+4.5*Math.pow(c,.8)), vsOf=c=>5*RL/(rsOf(c)+RL);
+const estC=vo=>{const vs=vo/G,rs=RL*(5-vs)/vs,k=R0/rs-1;return k<=0?0:Math.pow(k/4.5,1.25)};
+const S={heat:0,c:0,blow:false,tgt:.4,t:0,vs:0,vo:0,adc:0,rs:0,bac:null,sat:false};
+function simulate(dt){
+  S.t+=dt;S.heat=Math.min(1,S.heat+dt/25);
+  const tg=S.blow?S.tgt:0;S.c+=(tg-S.c)*(1-Math.exp(-dt/(tg>S.c?1.2:5)));
+  let vs=vsOf(S.c)+(1-S.heat)*.9*(.6+.4*Math.sin(S.t*2.3))+(Math.random()-.5)*.012;
+  vs=Math.max(.02,Math.min(4.95,vs));
+  S.vs=vs;S.vo=Math.min(vs*G,VMAX);S.sat=S.vo>=VMAX-.01;S.adc=Math.round(S.vo/5*1023);S.rs=RL*(5-vs)/vs;
+  S.bac=S.heat>=.98?estC(S.adc*5/1023)*.21:null;
+}
+
+/* ---------- UI ---------- */
+const conc=$('conc'),blow=$('blow');
+conc.oninput=()=>{S.tgt=+conc.value;$('concv').textContent=S.tgt.toFixed(2)};
+function setBlow(v){S.blow=v;blow.setAttribute('aria-pressed',v);blow.textContent='Blow on sensor: '+(v?'ON':'OFF')}
+blow.onclick=()=>setBlow(!S.blow);
+$('skip').onclick=()=>{S.heat=1};
+document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{conc.value=b.dataset.c;conc.oninput();setBlow(true)});
+$('reset').onclick=()=>Object.assign(cam,cam0);
+
+const serial=$('serial'),lines=[],hist=[],ch=$('chart'),cx=ch.getContext('2d');
+let tSer=0,tHist=0,spinPhase=0;
+function drawChart(){
+  const w=ch.width,h=ch.height,mute=getComputedStyle(document.documentElement).getPropertyValue('--mute')||'#888';
+  cx.clearRect(0,0,w,h);cx.font='10px sans-serif';cx.fillStyle=mute;cx.strokeStyle='rgba(128,140,160,.3)';cx.lineWidth=1;
+  for(let v=0;v<=5;v+=1){const y=h-4-(v/5)*(h-10);cx.beginPath();cx.moveTo(22,y);cx.lineTo(w,y);cx.stroke();cx.fillText(v+'V',0,y+3)}
+  const yT=h-4-(vsOf(.381)*G/5)*(h-10);cx.strokeStyle='#ff5252';cx.setLineDash([4,3]);cx.beginPath();cx.moveTo(22,yT);cx.lineTo(w,yT);cx.stroke();cx.setLineDash([]);
+  cx.strokeStyle='#4fc3f7';cx.lineWidth=2;cx.beginPath();hist.forEach((v,i)=>{const x=22+i/159*(w-22),y=h-4-(v/5)*(h-10);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.stroke();
+}
+let AC,osc,gn, soundReady=false;
+function unlockAudio(){try{if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();osc=AC.createOscillator();gn=AC.createGain();osc.type='square';osc.frequency.value=2500;gn.gain.value=0;osc.connect(gn);gn.connect(AC.destination);osc.start()}if(AC.state==='suspended')AC.resume();soundReady=true;$('sound-enable').textContent='Sound enabled ✓';$('sound-note').textContent='Browser sound is enabled. Turn on “Buzzer sound” below to hear the alert.'}catch(e){$('sound-note').textContent='Audio could not start in this browser. Check browser sound settings.'}}
+$('sound-enable').addEventListener('click',()=>{unlockAudio();$('snd').checked=true});
+function audio(on){if(!AC){if(!on)return;try{AC=new (window.AudioContext||window.webkitAudioContext)();osc=AC.createOscillator();gn=AC.createGain();osc.type='square';osc.frequency.value=2500;gn.gain.value=0;osc.connect(gn);gn.connect(AC.destination);osc.start()}catch(e){AC=null;return}}if(AC.state==='suspended')AC.resume().catch(()=>{});gn.gain.setTargetAtTime(on ? .04 : 0,AC.currentTime,.01)}
+let last=performance.now();
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt=Math.min(.1,(now-last)/1000);last=now;simulate(dt);
+  if($('spin').checked)cam.th+=dt*.25;placeCam();
+  /* explode */
+  const ex=$('explode').checked,k=1-Math.exp(-dt*6);
+  Object.values(parts).forEach(g=>g.position.lerp(ex?g.userData.ex:V(0,0,0),k));
+  labels.forEach(s=>{const o=parts[s.userData.pid].position;s.position.copy(s.userData.base).add(o);s.visible=$('labels').checked});
+  if(sel){hl.setFromObject(sel)}
+  /* heater glow */
+  const pulse=.85+.15*Math.sin(S.t*5);glow.material.opacity=S.heat*.8*pulse;heatLight.intensity=S.heat*1.1*pulse;
+  /* particles */
+  const act=S.blow&&S.tgt>.005?Math.round(N*Math.min(1,.12+S.tgt/1.2)):0;
+  for(let i=0;i<N;i++){if(i<act){if(pp[i*3+1]<-10)spawn(i);pp[i*3]+=pv[i*3]*dt;pp[i*3+1]+=pv[i*3+1]*dt;pp[i*3+2]+=pv[i*3+2]*dt;pl[i]-=dt;if(pl[i]<=0)spawn(i)}else pp[i*3+1]=-50}
+  pg.attributes.position.needsUpdate=true;
+  /* readouts */
+  const bac=S.bac,warm=S.heat<.98,over=bac!==null&&bac>=.08;
+  $('vs').textContent=S.vs.toFixed(2)+' V';$('vo').textContent=S.vo.toFixed(2)+' V';$('adc').textContent=S.adc;$('rs').textContent=S.rs.toFixed(1)+' kΩ';
+  $('bac').textContent=bac===null?'–':bac.toFixed(3)+' %';$('gfill').style.width=(bac===null?100:Math.max(0,100-Math.min(1,bac/.16)*100))+'%';
+  const st=$('status');let txt,col;
+  if(warm){txt='Warming up '+Math.round(S.heat*100)+'%';col='var(--warn)'}
+  else if(S.sat){txt='Sensor saturated';col='var(--bad)'}
+  else if(bac<.02){txt='Clean air / sober';col='var(--ok)'}else if(bac<.05){txt='Trace alcohol';col='var(--ok)'}else if(bac<.08){txt='Elevated';col='var(--warn)'}else{txt='Over limit';col='var(--bad)'}
+  st.textContent=txt;st.style.color=col;
+  $('led13').classList.toggle('on',over);ledL.material.emissiveIntensity=over?2:0;
+  const beep=over&&Math.floor(S.t*4)%2===0;redM.emissiveIntensity=over?1.6:0;ledLight.intensity=over?1.4:0;
+  bzG.position.x=bzx+(beep?(Math.random()-.5)*.05:0);bzG.position.z=bzz+(beep?(Math.random()-.5)*.05:0);
+  rings.forEach((r,i)=>{const p=(S.t*1.2+i/3)%1,s=.8+p*2.2;r.scale.set(s,s,s);r.material.opacity=over?(1-p)*.7:0});
+  audio(beep&&$('snd').checked);
+  /* history + serial */
+  tHist+=dt;if(tHist>.1){tHist=0;hist.push(S.vo);if(hist.length>160)hist.shift();drawChart()}
+  tSer+=dt;if(tSer>.5){tSer=0;lines.push('ADC='+S.adc+'  V='+S.vo.toFixed(2)+'  BAC='+(bac===null?'--':bac.toFixed(3)+'%'));if(lines.length>40)lines.shift();serial.textContent=lines.join('\n');serial.scrollTop=serial.scrollHeight;drawLap(lines)}
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
